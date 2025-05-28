@@ -191,7 +191,7 @@ class Chatbot:
         print(f"Total documents loaded: {len(documents)}")
         return documents
     
-    def process_documents(self, documents: List[Document], chunk_size: int = 200, chunk_overlap: int = 50):
+    def process_documents(self, documents: List[Document], chunk_size: int = 150, chunk_overlap: int = 75):
         """Process documents into chunks and store in vector database"""
         print("Starting document processing...")
         if not documents:
@@ -239,7 +239,7 @@ class Chatbot:
             print(f"Traceback: {traceback.format_exc()}")
             raise
     
-    def generate_response(self, query: str, k: int = 8) -> str:
+    def generate_response(self, query: str, k: int = 10) -> str:
         """Generate a response based on the query using retrieved context"""
         print(f"Generating response for query: {query}")
         if not self.vector_store:
@@ -260,7 +260,7 @@ class Chatbot:
             Use the following context to answer questions about Sujal's background, skills, projects, and experiences.
             
             Important sections to focus on:
-            - Personal Information
+            - Personal Information (including family details)
             - Contact Information
             - Skills
             - About Me
@@ -268,6 +268,7 @@ class Chatbot:
             - My Favorite Places
             - Blog Posts
             - Projects
+            - Family Information (parents, siblings, etc.)
 
             Context:
             {context}
@@ -284,6 +285,9 @@ class Chatbot:
             7. When discussing skills or services, be specific about what Sujal offers
             8. If asked about pricing, provide the exact amounts mentioned in the context
             9. For questions about who Sujal is, focus on the personal information and about me sections
+            10. For questions about family members, carefully check the personal information section
+            11. Pay special attention to any mentions of parents, siblings, or other family members
+            12. If family information is mentioned, include it in your response
 
             Answer:"""
             
