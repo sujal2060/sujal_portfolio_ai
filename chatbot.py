@@ -16,6 +16,7 @@ from langchain.embeddings.base import Embeddings
 import streamlit as st
 import requests
 import time
+from duckduckgo_search import DDGS
 
 # Configuration
 CLUSTER_ENDPOINT = st.secrets["ZILLIZ_CLUSTER_ENDPOINT"]
@@ -263,7 +264,7 @@ class Chatbot:
 
             Instructions:
             1. Answer based ONLY on the provided context about Sujal
-            2. If the context doesn't contain the answer, say "I don't have enough information to answer that question"
+            2. If the context doesn't contain the answer, say "I don't have enough information in my local knowledge base. Let me search the web for that information."
             3. Be specific and detailed in your response
             4. If the question is unclear, ask for clarification
             5. Maintain a professional and helpful tone
@@ -277,6 +278,41 @@ class Chatbot:
             
             # Generate response
             response = self.llm.invoke(prompt)
+            
+            # If the response indicates no local information, perform web search
+            if "I don't have enough information in my local knowledge base" in response:
+                try:
+                    # Perform web search
+                    with DDGS() as ddgs:
+                        search_results = list(ddgs.text(query, max_results=3))
+                    
+                    if search_results:
+                        # Create a new prompt with web search results
+                        web_context = "\n\n".join([result['body'] for result in search_results])
+                        web_prompt = f"""Based on the following web search results, please answer the question.
+                        If the information is not relevant or reliable, say so.
+                        
+                        Web Search Results:
+                        {web_context}
+                        
+                        Question: {query}
+                        
+                        Instructions:
+                        1. Provide a clear and concise answer based on the web search results
+                        2. If the search results are not relevant or reliable, say so
+                        3. Maintain a professional and helpful tone
+                        4. Include relevant details from the search results
+                        5. If you're unsure about the accuracy, mention that
+                        
+                        Answer:"""
+                        
+                        web_response = self.llm.invoke(web_prompt)
+                        return f"{response}\n\nHere's what I found from the web:\n{web_response}"
+                    else:
+                        return f"{response}\n\nI couldn't find any relevant information from the web search."
+                except Exception as e:
+                    return f"{response}\n\nI encountered an error while searching the web: {str(e)}"
+            
             return response
             
         except Exception as e:
