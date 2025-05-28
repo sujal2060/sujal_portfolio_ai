@@ -7,82 +7,25 @@ This chatbot uses Zilliz Cloud for vector storage and Together AI for embeddings
 import os
 from typing import List, Dict, Any
 from pymilvus import MilvusClient, DataType
-from langchain_community.llms import Together
+from langchain_together import TogetherEmbeddings, ChatTogether
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Milvus
 from langchain.schema import Document
-from langchain.embeddings.base import Embeddings
 import streamlit as st
-import requests
-import time
 
 # Configuration
 CLUSTER_ENDPOINT = st.secrets["ZILLIZ_CLUSTER_ENDPOINT"]
 TOKEN = st.secrets["ZILLIZ_TOKEN"]
 TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
 COLLECTION_NAME = "chatbot_collection"
-EMBEDDING_MODEL = "togethercomputer/m2-bert-80M-8k-retrieval"
+EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
 LLM_MODEL = "deepseek-ai/DeepSeek-V3"
 
 # Validate required secrets
 if not all([CLUSTER_ENDPOINT, TOKEN, TOGETHER_API_KEY]):
     st.error("Missing required secrets. Please check your Streamlit secrets configuration.")
     st.stop()
-
-class TogetherEmbeddings(Embeddings):
-    """Custom embeddings class for Together AI"""
-    
-    def __init__(self, model: str, api_key: str):
-        print(f"Initializing TogetherEmbeddings with model: {model}")
-        self.model = model
-        self.api_key = api_key
-        self.headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-        print("TogetherEmbeddings initialized")
-    
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        """Embed a list of documents"""
-        print(f"Embedding {len(texts)} documents...")
-        embeddings = []
-        # Process in batches of 10
-        for i in range(0, len(texts), 10):
-            batch = texts[i:i+10]
-            print(f"Processing batch {i//10 + 1} of {(len(texts) + 9)//10}")
-            start_time = time.time()
-            response = requests.post(
-                "https://api.together.xyz/v1/embeddings",
-                headers=self.headers,
-                json={"model": self.model, "input": batch}
-            )
-            if response.status_code == 200:
-                batch_embeddings = [item["embedding"] for item in response.json()["data"]]
-                embeddings.extend(batch_embeddings)
-                print(f"Batch processed in {time.time() - start_time:.2f} seconds")
-            else:
-                print(f"Error response: {response.status_code} - {response.text}")
-                raise Exception(f"Failed to get embeddings: {response.status_code} {response.text}")
-        print(f"Successfully embedded {len(embeddings)} documents")
-        return embeddings
-    
-    def embed_query(self, text: str) -> List[float]:
-        """Embed a query"""
-        print(f"Embedding query: {text[:50]}...")
-        start_time = time.time()
-        response = requests.post(
-            "https://api.together.xyz/v1/embeddings",
-            headers=self.headers,
-            json={"model": self.model, "input": [text]}
-        )
-        if response.status_code == 200:
-            embedding = response.json()["data"][0]["embedding"]
-            print(f"Query embedded in {time.time() - start_time:.2f} seconds")
-            return embedding
-        else:
-            print(f"Error response: {response.status_code} - {response.text}")
-            raise Exception(f"Failed to get embedding: {response.status_code} {response.text}")
 
 class VectorDatabase:
     def __init__(self):
@@ -126,25 +69,17 @@ class Chatbot:
         
         print("Initializing embeddings...")
         try:
-            # Initialize custom embeddings
             self.embeddings = TogetherEmbeddings(
                 model=EMBEDDING_MODEL,
                 api_key=TOGETHER_API_KEY
             )
-            
-            # Test the embeddings
-            print("Testing embeddings with a sample query...")
-            test_embedding = self.embeddings.embed_query("test")
-            print(f"Embeddings initialized successfully. Test embedding dimension: {len(test_embedding)}")
+            print("Embeddings initialized successfully")
             
             print("Initializing LLM...")
-            self.llm = Together(
+            self.llm = ChatTogether(
                 model=LLM_MODEL,
                 together_api_key=TOGETHER_API_KEY
             )
-            # Test the LLM
-            print("Testing LLM with a sample query...")
-            test_response = self.llm.invoke("test")
             print("LLM initialized successfully")
             
         except Exception as e:
@@ -191,7 +126,7 @@ class Chatbot:
         print(f"Total documents loaded: {len(documents)}")
         return documents
     
-    def process_documents(self, documents: List[Document], chunk_size: int = 150, chunk_overlap: int = 75):
+    def process_documents(self, documents: List[Document], chunk_size: int = 500, chunk_overlap: int = 50):
         """Process documents into chunks and store in vector database"""
         print("Starting document processing...")
         if not documents:
@@ -202,9 +137,7 @@ class Chatbot:
             print("Creating text splitter...")
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                length_function=len,
-                separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""]
+                chunk_overlap=chunk_overlap
             )
             
             print("Splitting documents into chunks...")
@@ -217,7 +150,6 @@ class Chatbot:
             print(f"Created {len(chunks)} chunks from documents")
             
             print("Creating vector store...")
-            start_time = time.time()
             self.vector_store = Milvus.from_documents(
                 documents=chunks,
                 embedding=self.embeddings,
@@ -229,7 +161,6 @@ class Chatbot:
                 metadata_field="metadata",
                 drop_old=False
             )
-            print(f"Vector store created in {time.time() - start_time:.2f} seconds")
             print(f"Successfully processed {len(chunks)} document chunks")
             print("Document processing completed successfully!")
             
@@ -239,7 +170,7 @@ class Chatbot:
             print(f"Traceback: {traceback.format_exc()}")
             raise
     
-    def generate_response(self, query: str, k: int = 10) -> str:
+    def generate_response(self, query: str, k: int = 5) -> str:
         """Generate a response based on the query using retrieved context"""
         print(f"Generating response for query: {query}")
         if not self.vector_store:
@@ -255,45 +186,12 @@ class Chatbot:
             # Build context from retrieved documents
             context = "\n\n".join([doc.page_content for doc in search_results])
             
-            # Create a more detailed prompt
-            prompt = f"""You are an AI assistant trained on Sujal Devkota's personal information, projects, and blog posts. 
-            Use the following context to answer questions about Sujal's background, skills, projects, and experiences.
-            
-            Important sections to focus on:
-            - Personal Information (including family details)
-            - Contact Information
-            - Skills
-            - About Me
-            - What I Offer (Services and Pricing)
-            - My Favorite Places
-            - Blog Posts
-            - Projects
-            - Family Information (parents, siblings, etc.)
-
-            Context:
-            {context}
-
-            Question: {query}
-
-            Instructions:
-            1. Answer based ONLY on the provided context about Sujal
-            2. If the context doesn't contain the answer, say "I don't have enough information to answer that question"
-            3. Be specific and detailed in your response
-            4. If the question is unclear, ask for clarification
-            5. Maintain a professional and helpful tone
-            6. When discussing projects or blog posts, include relevant details and dates
-            7. When discussing skills or services, be specific about what Sujal offers
-            8. If asked about pricing, provide the exact amounts mentioned in the context
-            9. For questions about who Sujal is, focus on the personal information and about me sections
-            10. For questions about family members, carefully check the personal information section
-            11. Pay special attention to any mentions of parents, siblings, or other family members
-            12. If family information is mentioned, include it in your response
-
-            Answer:"""
+            # Create prompt
+            prompt = f"""Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"""
             
             # Generate response
             print("Generating response from LLM...")
-            response = self.llm.invoke(prompt)
+            response = self.llm.invoke(prompt).content
             print("Response generated successfully")
             return response
             
