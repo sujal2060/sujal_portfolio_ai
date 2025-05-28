@@ -3,7 +3,7 @@ pymilvus==2.3.4
 langchain==0.1.9
 langchain-community==0.0.24
 langchain-together==0.0.1
-together==0.2.5
+together>=0.2.10,<0.3.0
 typing-extensions==4.13.2
 pygments==2.19.1
 mdurl==0.1.2
