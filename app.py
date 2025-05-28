@@ -55,21 +55,26 @@ if 'chatbot' not in st.session_state:
             
             st.write("Found about.txt file, attempting to load...")
             
-            # Initialize chatbot
-            st.session_state.chatbot = Chatbot()
-            st.write("Chatbot initialized successfully")
+            # Initialize chatbot with progress tracking
+            st.write("Step 1: Initializing chatbot...")
+            chatbot = Chatbot()
+            st.write("Step 2: Chatbot initialized successfully")
             
             # Load and process the about document
-            docs = st.session_state.chatbot.load_documents(["about.txt"])
+            st.write("Step 3: Loading documents...")
+            docs = chatbot.load_documents(["about.txt"])
             if not docs:
                 st.error("Error: No documents were loaded from about.txt!")
                 st.stop()
             
-            st.write(f"Successfully loaded {len(docs)} documents")
+            st.write(f"Step 4: Successfully loaded {len(docs)} documents")
             
-            st.write("Processing documents...")
-            st.session_state.chatbot.process_documents(docs)
-            st.success("Successfully loaded and processed documents!")
+            st.write("Step 5: Processing documents...")
+            chatbot.process_documents(docs)
+            st.success("Step 6: Successfully loaded and processed documents!")
+            
+            # Store the chatbot in session state
+            st.session_state.chatbot = chatbot
             
         except Exception as e:
             st.error(f"Error during initialization: {str(e)}")
