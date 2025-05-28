@@ -191,7 +191,7 @@ class Chatbot:
         print(f"Total documents loaded: {len(documents)}")
         return documents
     
-    def process_documents(self, documents: List[Document], chunk_size: int = 500, chunk_overlap: int = 50):
+    def process_documents(self, documents: List[Document], chunk_size: int = 300, chunk_overlap: int = 100):
         """Process documents into chunks and store in vector database"""
         print("Starting document processing...")
         if not documents:
@@ -202,7 +202,9 @@ class Chatbot:
             print("Creating text splitter...")
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap
+                chunk_overlap=chunk_overlap,
+                length_function=len,
+                separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""]
             )
             
             print("Splitting documents into chunks...")
@@ -252,8 +254,23 @@ class Chatbot:
             # Build context from retrieved documents
             context = "\n\n".join([doc.page_content for doc in search_results])
             
-            # Create prompt
-            prompt = f"""Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"""
+            # Create a more detailed prompt
+            prompt = f"""You are an AI assistant trained on specific content. Use the following context to answer the question. 
+            If the answer cannot be found in the context, say so. Be detailed and accurate in your response.
+
+            Context:
+            {context}
+
+            Question: {query}
+
+            Instructions:
+            1. Answer based ONLY on the provided context
+            2. If the context doesn't contain the answer, say "I don't have enough information to answer that question"
+            3. Be specific and detailed in your response
+            4. If the question is unclear, ask for clarification
+            5. Maintain a professional and helpful tone
+
+            Answer:"""
             
             # Generate response
             print("Generating response from LLM...")
