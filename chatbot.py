@@ -195,7 +195,7 @@ class Chatbot:
             print("Warning: No documents were loaded!")
         return documents
     
-    def process_documents(self, documents: List[Document], chunk_size: int = 200, chunk_overlap: int = 50):
+    def process_documents(self, documents: List[Document], chunk_size: int = 500, chunk_overlap: int = 50):
         """Process documents into chunks and store in vector database"""
         print("Starting document processing...")
         if not documents:
@@ -206,9 +206,7 @@ class Chatbot:
             print("Creating text splitter...")
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                length_function=len,
-                separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""]
+                chunk_overlap=chunk_overlap
             )
             
             print("Splitting documents into chunks...")
@@ -231,9 +229,10 @@ class Chatbot:
                 text_field="text",
                 vector_field="vector",
                 metadata_field="metadata",
-                drop_old=True
+                drop_old=False
             )
             print(f"Vector store created in {time.time() - start_time:.2f} seconds")
+            print(f"Successfully processed {len(chunks)} document chunks")
             
         except Exception as e:
             print(f"Error processing documents: {str(e)}")
@@ -247,38 +246,14 @@ class Chatbot:
             return "Error: No documents have been processed yet. Please load and process documents first."
             
         try:
-            # Check if the query is about Sujal or general knowledge
-            is_about_sujal = any(keyword in query.lower() for keyword in ['sujal', 'devkota', 'your', 'you', 'yourself'])
-            
-            if not is_about_sujal:
-                # For general knowledge questions, provide a direct response
-                return """I notice you're asking about general knowledge. While I'm primarily designed to answer questions about Sujal Devkota, I can tell you that HTML (HyperText Markup Language) is the standard markup language used to create and structure content on the web. It's used to define the meaning and structure of web content, including text, images, and other elements. HTML is one of the fundamental technologies of the World Wide Web, along with CSS and JavaScript."""
-            
-            # For questions about Sujal, use the vector store
+            # Retrieve relevant documents
             search_results = self.vector_store.similarity_search(query, k=k)
+            
+            # Build context from retrieved documents
             context = "\n\n".join([doc.page_content for doc in search_results])
             
-            prompt = f"""You are an AI assistant trained on Sujal Devkota's personal information, projects, and blog posts. 
-            Your task is to provide accurate and consistent information about Sujal based on the provided context.
-            
-            Context:
-            {context}
-
-            Question: {query}
-
-            Instructions:
-            1. Answer based ONLY on the provided context about Sujal
-            2. If the context doesn't contain the answer, say "I don't have enough information about that in my knowledge base."
-            3. Be specific and detailed in your response
-            4. If the question is unclear, ask for clarification
-            5. Maintain a professional and helpful tone
-            6. When discussing projects or blog posts, include relevant details and dates
-            7. When discussing skills or services, be specific about what Sujal offers
-            8. If asked about pricing, provide the exact amounts mentioned in the context
-            9. For questions about who Sujal is, focus on the personal information and about me sections
-            10. For questions about family members, carefully check the personal information section
-
-            Answer:"""
+            # Create prompt
+            prompt = f"""Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"""
             
             # Generate response
             response = self.llm.invoke(prompt)
