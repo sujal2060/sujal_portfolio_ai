@@ -15,6 +15,7 @@ from langchain.schema import Document
 from langchain.embeddings.base import Embeddings
 import streamlit as st
 import requests
+import time
 
 # Configuration
 CLUSTER_ENDPOINT = st.secrets["ZILLIZ_CLUSTER_ENDPOINT"]
@@ -33,19 +34,24 @@ class TogetherEmbeddings(Embeddings):
     """Custom embeddings class for Together AI"""
     
     def __init__(self, model: str, api_key: str):
+        print(f"Initializing TogetherEmbeddings with model: {model}")
         self.model = model
         self.api_key = api_key
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
+        print("TogetherEmbeddings initialized")
     
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Embed a list of documents"""
+        print(f"Embedding {len(texts)} documents...")
         embeddings = []
         # Process in batches of 10
         for i in range(0, len(texts), 10):
             batch = texts[i:i+10]
+            print(f"Processing batch {i//10 + 1} of {(len(texts) + 9)//10}")
+            start_time = time.time()
             response = requests.post(
                 "https://api.together.xyz/v1/embeddings",
                 headers=self.headers,
@@ -54,29 +60,40 @@ class TogetherEmbeddings(Embeddings):
             if response.status_code == 200:
                 batch_embeddings = [item["embedding"] for item in response.json()["data"]]
                 embeddings.extend(batch_embeddings)
+                print(f"Batch processed in {time.time() - start_time:.2f} seconds")
             else:
+                print(f"Error response: {response.status_code} - {response.text}")
                 raise Exception(f"Failed to get embeddings: {response.status_code} {response.text}")
+        print(f"Successfully embedded {len(embeddings)} documents")
         return embeddings
     
     def embed_query(self, text: str) -> List[float]:
         """Embed a query"""
+        print(f"Embedding query: {text[:50]}...")
+        start_time = time.time()
         response = requests.post(
             "https://api.together.xyz/v1/embeddings",
             headers=self.headers,
             json={"model": self.model, "input": [text]}
         )
         if response.status_code == 200:
-            return response.json()["data"][0]["embedding"]
+            embedding = response.json()["data"][0]["embedding"]
+            print(f"Query embedded in {time.time() - start_time:.2f} seconds")
+            return embedding
         else:
+            print(f"Error response: {response.status_code} - {response.text}")
             raise Exception(f"Failed to get embedding: {response.status_code} {response.text}")
 
 class VectorDatabase:
     def __init__(self):
+        print("Initializing VectorDatabase...")
         self.client = MilvusClient(uri=CLUSTER_ENDPOINT, token=TOKEN)
+        print("MilvusClient initialized")
         self._setup_collection()
         
     def _setup_collection(self):
         """Initialize the vector database collection with proper schema"""
+        print("Setting up collection...")
         schema = self.client.create_schema(
             auto_id=True,
             enable_dynamic_field=True
@@ -116,6 +133,7 @@ class Chatbot:
             )
             
             # Test the embeddings
+            print("Testing embeddings with a sample query...")
             test_embedding = self.embeddings.embed_query("test")
             print(f"Embeddings initialized successfully. Test embedding dimension: {len(test_embedding)}")
             
@@ -125,6 +143,7 @@ class Chatbot:
                 together_api_key=TOGETHER_API_KEY
             )
             # Test the LLM
+            print("Testing LLM with a sample query...")
             test_response = self.llm.invoke("test")
             print("LLM initialized successfully")
             
@@ -196,6 +215,7 @@ class Chatbot:
             print(f"Created {len(chunks)} chunks from documents")
             
             print("Creating vector store...")
+            start_time = time.time()
             self.vector_store = Milvus.from_documents(
                 documents=chunks,
                 embedding=self.embeddings,
@@ -207,6 +227,7 @@ class Chatbot:
                 metadata_field="metadata",
                 drop_old=False
             )
+            print(f"Vector store created in {time.time() - start_time:.2f} seconds")
             print(f"Successfully processed {len(chunks)} document chunks")
             
         except Exception as e:
