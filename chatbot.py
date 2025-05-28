@@ -194,7 +194,7 @@ class Chatbot:
             print("Warning: No documents were loaded!")
         return documents
     
-    def process_documents(self, documents: List[Document], chunk_size: int = 50, chunk_overlap: int = 25):
+    def process_documents(self, documents: List[Document], chunk_size: int = 200, chunk_overlap: int = 50):
         """Process documents into chunks and store in vector database"""
         print("Starting document processing...")
         if not documents:
@@ -218,7 +218,6 @@ class Chatbot:
                 return
             
             print(f"Created {len(chunks)} chunks from documents")
-            print("Sample of first chunk:", chunks[0].page_content[:100] if chunks else "No chunks")
             
             print("Creating vector store...")
             start_time = time.time()
@@ -231,11 +230,9 @@ class Chatbot:
                 text_field="text",
                 vector_field="vector",
                 metadata_field="metadata",
-                drop_old=True  # Changed to True to ensure fresh data
+                drop_old=True
             )
             print(f"Vector store created in {time.time() - start_time:.2f} seconds")
-            print(f"Successfully processed {len(chunks)} document chunks")
-            print("Document processing completed successfully!")
             
         except Exception as e:
             print(f"Error processing documents: {str(e)}")
@@ -243,39 +240,22 @@ class Chatbot:
             print(f"Traceback: {traceback.format_exc()}")
             raise
     
-    def generate_response(self, query: str, k: int = 15) -> str:
+    def generate_response(self, query: str, k: int = 5) -> str:
         """Generate a response based on the query using retrieved context"""
-        print(f"Generating response for query: {query}")
         if not self.vector_store:
-            print("Error: Vector store is not initialized!")
             return "Error: No documents have been processed yet. Please load and process documents first."
             
         try:
             # Retrieve relevant documents
-            print("Retrieving relevant documents...")
             search_results = self.vector_store.similarity_search(query, k=k)
-            print(f"Retrieved {len(search_results)} relevant documents")
             
             # Build context from retrieved documents
             context = "\n\n".join([doc.page_content for doc in search_results])
-            print(f"Context length: {len(context)} characters")
-            print(f"First 100 characters of context: {context[:100]}")
             
             # Create a more detailed prompt
             prompt = f"""You are an AI assistant trained on Sujal Devkota's personal information, projects, and blog posts. 
             Your task is to provide accurate and consistent information about Sujal based on the provided context.
             
-            Important sections to focus on:
-            - Personal Information (including family details)
-            - Contact Information
-            - Skills
-            - About Me
-            - What I Offer (Services and Pricing)
-            - My Favorite Places
-            - Blog Posts
-            - Projects
-            - Family Information (parents, siblings, etc.)
-
             Context:
             {context}
 
@@ -292,24 +272,14 @@ class Chatbot:
             8. If asked about pricing, provide the exact amounts mentioned in the context
             9. For questions about who Sujal is, focus on the personal information and about me sections
             10. For questions about family members, carefully check the personal information section
-            11. Pay special attention to any mentions of parents, siblings, or other family members
-            12. If family information is mentioned, include it in your response
-            13. Always verify information across multiple chunks to ensure consistency
-            14. If you find conflicting information, use the most detailed or recent information
-            15. For questions about identity or background, combine information from multiple sections
 
             Answer:"""
             
             # Generate response
-            print("Generating response from LLM...")
             response = self.llm.invoke(prompt)
-            print("Response generated successfully")
             return response
             
         except Exception as e:
-            print(f"Error generating response: {str(e)}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
             return f"Error generating response: {str(e)}"
 
 def main():
