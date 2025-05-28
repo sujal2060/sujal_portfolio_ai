@@ -191,7 +191,7 @@ class Chatbot:
         print(f"Total documents loaded: {len(documents)}")
         return documents
     
-    def process_documents(self, documents: List[Document], chunk_size: int = 500, chunk_overlap: int = 50):
+    def process_documents(self, documents: List[Document], chunk_size: int = 150, chunk_overlap: int = 75):
         """Process documents into chunks and store in vector database"""
         print("Starting document processing...")
         if not documents:
@@ -202,7 +202,9 @@ class Chatbot:
             print("Creating text splitter...")
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap
+                chunk_overlap=chunk_overlap,
+                length_function=len,
+                separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""]
             )
             
             print("Splitting documents into chunks...")
@@ -215,6 +217,7 @@ class Chatbot:
             print(f"Created {len(chunks)} chunks from documents")
             
             print("Creating vector store...")
+            start_time = time.time()
             self.vector_store = Milvus.from_documents(
                 documents=chunks,
                 embedding=self.embeddings,
@@ -226,6 +229,7 @@ class Chatbot:
                 metadata_field="metadata",
                 drop_old=False
             )
+            print(f"Vector store created in {time.time() - start_time:.2f} seconds")
             print(f"Successfully processed {len(chunks)} document chunks")
             print("Document processing completed successfully!")
             
@@ -235,7 +239,7 @@ class Chatbot:
             print(f"Traceback: {traceback.format_exc()}")
             raise
     
-    def generate_response(self, query: str, k: int = 5) -> str:
+    def generate_response(self, query: str, k: int = 10) -> str:
         """Generate a response based on the query using retrieved context"""
         print(f"Generating response for query: {query}")
         if not self.vector_store:
@@ -251,12 +255,45 @@ class Chatbot:
             # Build context from retrieved documents
             context = "\n\n".join([doc.page_content for doc in search_results])
             
-            # Create prompt
-            prompt = f"""Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"""
+            # Create a more detailed prompt
+            prompt = f"""You are an AI assistant trained on Sujal Devkota's personal information, projects, and blog posts. 
+            Use the following context to answer questions about Sujal's background, skills, projects, and experiences.
+            
+            Important sections to focus on:
+            - Personal Information (including family details)
+            - Contact Information
+            - Skills
+            - About Me
+            - What I Offer (Services and Pricing)
+            - My Favorite Places
+            - Blog Posts
+            - Projects
+            - Family Information (parents, siblings, etc.)
+
+            Context:
+            {context}
+
+            Question: {query}
+
+            Instructions:
+            1. Answer based ONLY on the provided context about Sujal
+            2. If the context doesn't contain the answer, say "I don't have enough information to answer that question"
+            3. Be specific and detailed in your response
+            4. If the question is unclear, ask for clarification
+            5. Maintain a professional and helpful tone
+            6. When discussing projects or blog posts, include relevant details and dates
+            7. When discussing skills or services, be specific about what Sujal offers
+            8. If asked about pricing, provide the exact amounts mentioned in the context
+            9. For questions about who Sujal is, focus on the personal information and about me sections
+            10. For questions about family members, carefully check the personal information section
+            11. Pay special attention to any mentions of parents, siblings, or other family members
+            12. If family information is mentioned, include it in your response
+
+            Answer:"""
             
             # Generate response
             print("Generating response from LLM...")
-            response = self.llm.invoke(prompt).content
+            response = self.llm.invoke(prompt)
             print("Response generated successfully")
             return response
             
