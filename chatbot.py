@@ -175,6 +175,7 @@ class Chatbot:
                     continue
                 
                 print(f"File content length: {len(content)} characters")
+                print(f"First 100 characters of content: {content[:100]}")
                 
                 # Create a Document object manually
                 doc = Document(
@@ -189,9 +190,11 @@ class Chatbot:
                 print(f"Traceback: {traceback.format_exc()}")
         
         print(f"Total documents loaded: {len(documents)}")
+        if len(documents) == 0:
+            print("Warning: No documents were loaded!")
         return documents
     
-    def process_documents(self, documents: List[Document], chunk_size: int = 100, chunk_overlap: int = 50):
+    def process_documents(self, documents: List[Document], chunk_size: int = 50, chunk_overlap: int = 25):
         """Process documents into chunks and store in vector database"""
         print("Starting document processing...")
         if not documents:
@@ -215,6 +218,7 @@ class Chatbot:
                 return
             
             print(f"Created {len(chunks)} chunks from documents")
+            print("Sample of first chunk:", chunks[0].page_content[:100] if chunks else "No chunks")
             
             print("Creating vector store...")
             start_time = time.time()
@@ -227,7 +231,7 @@ class Chatbot:
                 text_field="text",
                 vector_field="vector",
                 metadata_field="metadata",
-                drop_old=False
+                drop_old=True  # Changed to True to ensure fresh data
             )
             print(f"Vector store created in {time.time() - start_time:.2f} seconds")
             print(f"Successfully processed {len(chunks)} document chunks")
@@ -254,6 +258,8 @@ class Chatbot:
             
             # Build context from retrieved documents
             context = "\n\n".join([doc.page_content for doc in search_results])
+            print(f"Context length: {len(context)} characters")
+            print(f"First 100 characters of context: {context[:100]}")
             
             # Create a more detailed prompt
             prompt = f"""You are an AI assistant trained on Sujal Devkota's personal information, projects, and blog posts. 
