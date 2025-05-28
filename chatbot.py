@@ -191,7 +191,7 @@ class Chatbot:
         print(f"Total documents loaded: {len(documents)}")
         return documents
     
-    def process_documents(self, documents: List[Document], chunk_size: int = 150, chunk_overlap: int = 75):
+    def process_documents(self, documents: List[Document], chunk_size: int = 100, chunk_overlap: int = 50):
         """Process documents into chunks and store in vector database"""
         print("Starting document processing...")
         if not documents:
@@ -239,7 +239,7 @@ class Chatbot:
             print(f"Traceback: {traceback.format_exc()}")
             raise
     
-    def generate_response(self, query: str, k: int = 10) -> str:
+    def generate_response(self, query: str, k: int = 15) -> str:
         """Generate a response based on the query using retrieved context"""
         print(f"Generating response for query: {query}")
         if not self.vector_store:
@@ -257,7 +257,7 @@ class Chatbot:
             
             # Create a more detailed prompt
             prompt = f"""You are an AI assistant trained on Sujal Devkota's personal information, projects, and blog posts. 
-            Use the following context to answer questions about Sujal's background, skills, projects, and experiences.
+            Your task is to provide accurate and consistent information about Sujal based on the provided context.
             
             Important sections to focus on:
             - Personal Information (including family details)
@@ -288,6 +288,9 @@ class Chatbot:
             10. For questions about family members, carefully check the personal information section
             11. Pay special attention to any mentions of parents, siblings, or other family members
             12. If family information is mentioned, include it in your response
+            13. Always verify information across multiple chunks to ensure consistency
+            14. If you find conflicting information, use the most detailed or recent information
+            15. For questions about identity or background, combine information from multiple sections
 
             Answer:"""
             
