@@ -1,5 +1,6 @@
 import streamlit as st
 from chatbot import Chatbot
+import time
 import os
 import traceback
 
@@ -43,17 +44,30 @@ st.markdown("""
 if 'chatbot' not in st.session_state:
     with st.spinner('Initializing chatbot...'):
         try:
+            # Check if about.txt exists
             if not os.path.exists("about.txt"):
                 st.error("Error: about.txt file not found!")
                 st.stop()
             
+            # Initialize chatbot with progress tracking
+            st.write("Step 1: Initializing chatbot...")
             chatbot = Chatbot()
+            st.write("Step 2: Chatbot initialized successfully")
+            
+            # Load and process the about document
+            st.write("Step 3: Loading documents...")
             docs = chatbot.load_documents(["about.txt"])
             if not docs:
                 st.error("Error: No documents were loaded from about.txt!")
                 st.stop()
             
+            st.write(f"Step 4: Successfully loaded {len(docs)} documents")
+            
+            st.write("Step 5: Processing documents...")
             chatbot.process_documents(docs)
+            st.success("Step 6: Successfully loaded and processed documents!")
+            
+            # Store the chatbot in session state
             st.session_state.chatbot = chatbot
             
         except Exception as e:
@@ -75,16 +89,20 @@ for message in st.session_state.messages:
 
 # Chat input
 if prompt := st.chat_input("What would you like to know?"):
+    # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
     
+    # Display user message
     with st.chat_message("user"):
         st.markdown(prompt)
     
+    # Get bot response
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             response = st.session_state.chatbot.generate_response(prompt)
             st.markdown(response)
     
+    # Add assistant response to chat history
     st.session_state.messages.append({"role": "assistant", "content": response})
 
 # Sidebar
@@ -101,4 +119,4 @@ with st.sidebar:
     
     if st.button("Clear Chat History"):
         st.session_state.messages = []
-        st.rerun()
+        st.rerun() 
