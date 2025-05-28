@@ -7,7 +7,6 @@ This chatbot uses Zilliz Cloud for vector storage and Together AI for embeddings
 import os
 from typing import List, Dict, Any
 from pymilvus import MilvusClient, DataType
-from langchain_together import TogetherEmbeddings
 from langchain_community.llms import Together
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -21,7 +20,7 @@ CLUSTER_ENDPOINT = st.secrets["ZILLIZ_CLUSTER_ENDPOINT"]
 TOKEN = st.secrets["ZILLIZ_TOKEN"]
 TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
 COLLECTION_NAME = "chatbot_collection"
-EMBEDDING_MODEL = "togethercomputer/m2-bert-80M-8k-retrieval"  # Updated model name
+EMBEDDING_MODEL = "togethercomputer/m2-bert-80M-8k-retrieval"
 LLM_MODEL = "deepseek-ai/DeepSeek-V3"
 
 # Validate required secrets
@@ -80,28 +79,21 @@ class Chatbot:
                 "input": ["test"]
             }
 
+            print("Making API request to:", "https://api.together.xyz/v1/embeddings")
+            print("With headers:", headers)
+            print("And data:", data)
+
             response = requests.post("https://api.together.xyz/v1/embeddings", headers=headers, json=data)
 
             if response.status_code == 200:
                 embedding = response.json()["data"][0]["embedding"]
                 print("Embedding retrieved successfully. Length:", len(embedding))
+                self.embedding_dimension = len(embedding)
             else:
                 print("Failed to get embedding:", response.status_code, response.text)
                 raise Exception(f"Failed to get embedding: {response.status_code} {response.text}")
             
-            self.embeddings = TogetherEmbeddings(
-                model=EMBEDDING_MODEL,
-                api_key=TOGETHER_API_KEY
-            )
-            # Test the embeddings
-            test_embedding = self.embeddings.embed_query("test")
-            print(f"Embeddings initialized successfully. Test embedding dimension: {len(test_embedding)}")
-        except Exception as e:
-            print(f"Error initializing embeddings: {str(e)}")
-            raise
-        
-        print("Initializing LLM...")
-        try:
+            print("Initializing LLM...")
             self.llm = Together(
                 model=LLM_MODEL,
                 together_api_key=TOGETHER_API_KEY
@@ -109,8 +101,9 @@ class Chatbot:
             # Test the LLM
             test_response = self.llm.invoke("test")
             print("LLM initialized successfully")
+            
         except Exception as e:
-            print(f"Error initializing LLM: {str(e)}")
+            print(f"Error during initialization: {str(e)}")
             raise
         
         self.vector_store = None
@@ -179,16 +172,45 @@ class Chatbot:
             print("Testing embeddings with a sample chunk...")
             sample_text = chunks[0].page_content[:100]  # First 100 chars of first chunk
             try:
-                test_embedding = self.embeddings.embed_query(sample_text)
-                print(f"Embedding test successful. Dimension: {len(test_embedding)}")
+                headers = {
+                    "Authorization": f"Bearer {TOGETHER_API_KEY}",
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "model": EMBEDDING_MODEL,
+                    "input": [sample_text]
+                }
+                response = requests.post("https://api.together.xyz/v1/embeddings", headers=headers, json=data)
+                if response.status_code == 200:
+                    test_embedding = response.json()["data"][0]["embedding"]
+                    print(f"Embedding test successful. Dimension: {len(test_embedding)}")
+                else:
+                    raise Exception(f"Failed to get embedding: {response.status_code} {response.text}")
             except Exception as e:
                 print(f"Error testing embeddings: {str(e)}")
                 raise
             
             print("Creating vector store...")
+            # Create embeddings for all chunks
+            chunk_texts = [chunk.page_content for chunk in chunks]
+            embeddings = []
+            for i in range(0, len(chunk_texts), 10):  # Process in batches of 10
+                batch = chunk_texts[i:i+10]
+                response = requests.post(
+                    "https://api.together.xyz/v1/embeddings",
+                    headers=headers,
+                    json={"model": EMBEDDING_MODEL, "input": batch}
+                )
+                if response.status_code == 200:
+                    batch_embeddings = [item["embedding"] for item in response.json()["data"]]
+                    embeddings.extend(batch_embeddings)
+                else:
+                    raise Exception(f"Failed to get embeddings: {response.status_code} {response.text}")
+            
+            # Create vector store with embeddings
             self.vector_store = Milvus.from_documents(
                 documents=chunks,
-                embedding=self.embeddings,
+                embedding=embeddings,
                 collection_name=COLLECTION_NAME,
                 connection_args={"uri": CLUSTER_ENDPOINT, "token": TOKEN},
                 primary_field="id",
@@ -199,15 +221,6 @@ class Chatbot:
             )
             print(f"Successfully processed {len(chunks)} document chunks")
             
-            # Verify vector store
-            if self.vector_store:
-                print("Verifying vector store...")
-                test_query = "test query"
-                results = self.vector_store.similarity_search(test_query, k=1)
-                print(f"Vector store verification successful. Retrieved {len(results)} results")
-            else:
-                print("Warning: Vector store is None after creation!")
-                
         except Exception as e:
             print(f"Error processing documents: {str(e)}")
             import traceback
@@ -222,9 +235,23 @@ class Chatbot:
             return "Error: No documents have been processed yet. Please load and process documents first."
             
         try:
-            # Retrieve relevant documents
-            print("Retrieving relevant documents...")
-            search_results = self.vector_store.similarity_search(query, k=k)
+            # Get query embedding
+            headers = {
+                "Authorization": f"Bearer {TOGETHER_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": EMBEDDING_MODEL,
+                "input": [query]
+            }
+            response = requests.post("https://api.together.xyz/v1/embeddings", headers=headers, json=data)
+            if response.status_code != 200:
+                raise Exception(f"Failed to get query embedding: {response.status_code} {response.text}")
+            
+            query_embedding = response.json()["data"][0]["embedding"]
+            
+            # Retrieve relevant documents using the embedding
+            search_results = self.vector_store.similarity_search_by_vector(query_embedding, k=k)
             print(f"Retrieved {len(search_results)} relevant documents")
             
             # Build context from retrieved documents
