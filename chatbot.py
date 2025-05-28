@@ -14,18 +14,15 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Milvus
 from langchain.schema import Document
 import streamlit as st
-import together
+import requests
 
 # Configuration
 CLUSTER_ENDPOINT = st.secrets["ZILLIZ_CLUSTER_ENDPOINT"]
 TOKEN = st.secrets["ZILLIZ_TOKEN"]
 TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
 COLLECTION_NAME = "chatbot_collection"
-EMBEDDING_MODEL = "togethercomputer/m2-bert-80m-8k-base"
+EMBEDDING_MODEL = "togethercomputer/m2-bert-80M-8k-retrieval"  # Updated model name
 LLM_MODEL = "deepseek-ai/DeepSeek-V3"
-
-# Initialize Together AI client
-together.api_key = TOGETHER_API_KEY
 
 # Validate required secrets
 if not all([CLUSTER_ENDPOINT, TOKEN, TOGETHER_API_KEY]):
@@ -73,11 +70,24 @@ class Chatbot:
         try:
             # Test Together AI API directly
             print("Testing Together AI API...")
-            response = together.Embeddings.create(
-                input=["test"],
-                model=EMBEDDING_MODEL
-            )
-            print("Together AI API test successful!")
+            headers = {
+                "Authorization": f"Bearer {TOGETHER_API_KEY}",
+                "Content-Type": "application/json"
+            }
+
+            data = {
+                "model": EMBEDDING_MODEL,
+                "input": ["test"]
+            }
+
+            response = requests.post("https://api.together.xyz/v1/embeddings", headers=headers, json=data)
+
+            if response.status_code == 200:
+                embedding = response.json()["data"][0]["embedding"]
+                print("Embedding retrieved successfully. Length:", len(embedding))
+            else:
+                print("Failed to get embedding:", response.status_code, response.text)
+                raise Exception(f"Failed to get embedding: {response.status_code} {response.text}")
             
             self.embeddings = TogetherEmbeddings(
                 model=EMBEDDING_MODEL,
