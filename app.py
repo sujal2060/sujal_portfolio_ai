@@ -2,6 +2,7 @@ import streamlit as st
 from chatbot import Chatbot
 import time
 import os
+import traceback
 
 # Set page config
 st.set_page_config(
@@ -47,14 +48,16 @@ if 'chatbot' not in st.session_state:
             st.write(f"Current working directory: {os.getcwd()}")
             st.write("Files in directory:", os.listdir())
             
-            st.session_state.chatbot = Chatbot()
-            
             # Check if about.txt exists
             if not os.path.exists("about.txt"):
                 st.error("Error: about.txt file not found in the current directory!")
                 st.stop()
             
             st.write("Found about.txt file, attempting to load...")
+            
+            # Initialize chatbot
+            st.session_state.chatbot = Chatbot()
+            st.write("Chatbot initialized successfully")
             
             # Load and process the about document
             docs = st.session_state.chatbot.load_documents(["about.txt"])
@@ -70,7 +73,6 @@ if 'chatbot' not in st.session_state:
             
         except Exception as e:
             st.error(f"Error during initialization: {str(e)}")
-            import traceback
             st.error(f"Traceback: {traceback.format_exc()}")
             st.stop()
 
