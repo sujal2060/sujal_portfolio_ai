@@ -256,7 +256,7 @@ class Chatbot:
             
             # Generate response
             print("Generating response from LLM...")
-            response = self.llm.invoke(prompt).content
+            response = self.llm.invoke(prompt)
             print("Response generated successfully")
             return response
             
