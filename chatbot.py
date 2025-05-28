@@ -14,14 +14,18 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Milvus
 from langchain.schema import Document
 import streamlit as st
+import together
 
 # Configuration
 CLUSTER_ENDPOINT = st.secrets["ZILLIZ_CLUSTER_ENDPOINT"]
 TOKEN = st.secrets["ZILLIZ_TOKEN"]
 TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
 COLLECTION_NAME = "chatbot_collection"
-EMBEDDING_MODEL = "togethercomputer/m2-bert-80m-8k-base"  # Using Together's own model
+EMBEDDING_MODEL = "togethercomputer/m2-bert-80m-8k-base"
 LLM_MODEL = "deepseek-ai/DeepSeek-V3"
+
+# Initialize Together AI client
+together.api_key = TOGETHER_API_KEY
 
 # Validate required secrets
 if not all([CLUSTER_ENDPOINT, TOKEN, TOGETHER_API_KEY]):
@@ -67,6 +71,14 @@ class Chatbot:
         
         print("Initializing embeddings...")
         try:
+            # Test Together AI API directly
+            print("Testing Together AI API...")
+            response = together.Embeddings.create(
+                input=["test"],
+                model=EMBEDDING_MODEL
+            )
+            print("Together AI API test successful!")
+            
             self.embeddings = TogetherEmbeddings(
                 model=EMBEDDING_MODEL,
                 api_key=TOGETHER_API_KEY
