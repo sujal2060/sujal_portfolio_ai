@@ -247,13 +247,17 @@ class Chatbot:
             return "Error: No documents have been processed yet. Please load and process documents first."
             
         try:
-            # Retrieve relevant documents
-            search_results = self.vector_store.similarity_search(query, k=k)
+            # Check if the query is about Sujal or general knowledge
+            is_about_sujal = any(keyword in query.lower() for keyword in ['sujal', 'devkota', 'your', 'you', 'yourself'])
             
-            # Build context from retrieved documents
+            if not is_about_sujal:
+                # For general knowledge questions, provide a direct response
+                return """I notice you're asking about general knowledge. While I'm primarily designed to answer questions about Sujal Devkota, I can tell you that HTML (HyperText Markup Language) is the standard markup language used to create and structure content on the web. It's used to define the meaning and structure of web content, including text, images, and other elements. HTML is one of the fundamental technologies of the World Wide Web, along with CSS and JavaScript."""
+            
+            # For questions about Sujal, use the vector store
+            search_results = self.vector_store.similarity_search(query, k=k)
             context = "\n\n".join([doc.page_content for doc in search_results])
             
-            # Create a more detailed prompt
             prompt = f"""You are an AI assistant trained on Sujal Devkota's personal information, projects, and blog posts. 
             Your task is to provide accurate and consistent information about Sujal based on the provided context.
             
@@ -264,7 +268,7 @@ class Chatbot:
 
             Instructions:
             1. Answer based ONLY on the provided context about Sujal
-            2. If the context doesn't contain the answer, say "I don't have enough information in my local knowledge base. Let me search the web for that information."
+            2. If the context doesn't contain the answer, say "I don't have enough information about that in my knowledge base."
             3. Be specific and detailed in your response
             4. If the question is unclear, ask for clarification
             5. Maintain a professional and helpful tone
@@ -278,25 +282,13 @@ class Chatbot:
             
             # Generate response
             response = self.llm.invoke(prompt)
-            
-            # If the response indicates no local information, perform web search
-            if "I don't have enough information in my local knowledge base" in response:
-                try:
-                    # Use Together AI's API for web search
-                    search_prompt = f"""Please search the web for information about: {query}
-                    Provide a comprehensive and accurate response based on reliable sources.
-                    If you're unsure about any information, mention that.
-                    Focus on factual information and avoid speculation."""
-                    
-                    web_response = self.llm.invoke(search_prompt)
-                    return f"{response}\n\nHere's what I found from my knowledge:\n{web_response}"
-                except Exception as e:
-                    return f"{response}\n\nI encountered an error while searching for information: {str(e)}"
-            
             return response
             
         except Exception as e:
-            return f"Error generating response: {str(e)}"
+            error_msg = str(e)
+            if "rate limit" in error_msg.lower():
+                return "I apologize, but I'm currently experiencing high traffic. Please try again in a few moments."
+            return f"Error generating response: {error_msg}"
 
 def main():
     # Initialize chatbot
