@@ -66,20 +66,32 @@ class Chatbot:
         print("Vector database initialized")
         
         print("Initializing embeddings...")
-        self.embeddings = TogetherEmbeddings(
-            model=EMBEDDING_MODEL,
-            api_key=TOGETHER_API_KEY,
-            together_api_base="https://api.together.xyz/v1"
-        )
-        print("Embeddings initialized")
+        try:
+            self.embeddings = TogetherEmbeddings(
+                model=EMBEDDING_MODEL,
+                api_key=TOGETHER_API_KEY,
+                together_api_base="https://api.together.xyz/v1"
+            )
+            # Test the embeddings
+            test_embedding = self.embeddings.embed_query("test")
+            print(f"Embeddings initialized successfully. Test embedding dimension: {len(test_embedding)}")
+        except Exception as e:
+            print(f"Error initializing embeddings: {str(e)}")
+            raise
         
         print("Initializing LLM...")
-        self.llm = Together(
-            model=LLM_MODEL,
-            together_api_key=TOGETHER_API_KEY,
-            together_api_base="https://api.together.xyz/v1"
-        )
-        print("LLM initialized")
+        try:
+            self.llm = Together(
+                model=LLM_MODEL,
+                together_api_key=TOGETHER_API_KEY,
+                together_api_base="https://api.together.xyz/v1"
+            )
+            # Test the LLM
+            test_response = self.llm.invoke("test")
+            print("LLM initialized successfully")
+        except Exception as e:
+            print(f"Error initializing LLM: {str(e)}")
+            raise
         
         self.vector_store = None
         print("Chatbot initialization complete")
@@ -144,6 +156,15 @@ class Chatbot:
             
             print(f"Created {len(chunks)} chunks from documents")
             
+            print("Testing embeddings with a sample chunk...")
+            sample_text = chunks[0].page_content[:100]  # First 100 chars of first chunk
+            try:
+                test_embedding = self.embeddings.embed_query(sample_text)
+                print(f"Embedding test successful. Dimension: {len(test_embedding)}")
+            except Exception as e:
+                print(f"Error testing embeddings: {str(e)}")
+                raise
+            
             print("Creating vector store...")
             self.vector_store = Milvus.from_documents(
                 documents=chunks,
@@ -157,6 +178,16 @@ class Chatbot:
                 drop_old=False
             )
             print(f"Successfully processed {len(chunks)} document chunks")
+            
+            # Verify vector store
+            if self.vector_store:
+                print("Verifying vector store...")
+                test_query = "test query"
+                results = self.vector_store.similarity_search(test_query, k=1)
+                print(f"Vector store verification successful. Retrieved {len(results)} results")
+            else:
+                print("Warning: Vector store is None after creation!")
+                
         except Exception as e:
             print(f"Error processing documents: {str(e)}")
             import traceback
