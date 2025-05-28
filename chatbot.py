@@ -16,7 +16,6 @@ from langchain.embeddings.base import Embeddings
 import streamlit as st
 import requests
 import time
-import json
 
 # Configuration
 CLUSTER_ENDPOINT = st.secrets["ZILLIZ_CLUSTER_ENDPOINT"]
@@ -195,7 +194,7 @@ class Chatbot:
             print("Warning: No documents were loaded!")
         return documents
     
-    def process_documents(self, documents: List[Document], chunk_size: int = 500, chunk_overlap: int = 50):
+    def process_documents(self, documents: List[Document], chunk_size: int = 200, chunk_overlap: int = 50):
         """Process documents into chunks and store in vector database"""
         print("Starting document processing...")
         if not documents:
@@ -206,7 +205,9 @@ class Chatbot:
             print("Creating text splitter...")
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap
+                chunk_overlap=chunk_overlap,
+                length_function=len,
+                separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""]
             )
             
             print("Splitting documents into chunks...")
@@ -229,10 +230,9 @@ class Chatbot:
                 text_field="text",
                 vector_field="vector",
                 metadata_field="metadata",
-                drop_old=False
+                drop_old=True
             )
             print(f"Vector store created in {time.time() - start_time:.2f} seconds")
-            print(f"Successfully processed {len(chunks)} document chunks")
             
         except Exception as e:
             print(f"Error processing documents: {str(e)}")
@@ -252,18 +252,35 @@ class Chatbot:
             # Build context from retrieved documents
             context = "\n\n".join([doc.page_content for doc in search_results])
             
-            # Create prompt
-            prompt = f"""Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"""
+            # Create a more detailed prompt
+            prompt = f"""You are an AI assistant trained on Sujal Devkota's personal information, projects, and blog posts. 
+            Your task is to provide accurate and consistent information about Sujal based on the provided context.
+            
+            Context:
+            {context}
+
+            Question: {query}
+
+            Instructions:
+            1. Answer based ONLY on the provided context about Sujal
+            2. If the context doesn't contain the answer, say "I don't have enough information to answer that question"
+            3. Be specific and detailed in your response
+            4. If the question is unclear, ask for clarification
+            5. Maintain a professional and helpful tone
+            6. When discussing projects or blog posts, include relevant details and dates
+            7. When discussing skills or services, be specific about what Sujal offers
+            8. If asked about pricing, provide the exact amounts mentioned in the context
+            9. For questions about who Sujal is, focus on the personal information and about me sections
+            10. For questions about family members, carefully check the personal information section
+
+            Answer:"""
             
             # Generate response
             response = self.llm.invoke(prompt)
             return response
             
         except Exception as e:
-            error_msg = str(e)
-            if "rate limit" in error_msg.lower():
-                return "I apologize, but I'm currently experiencing high traffic. Please try again in a few moments."
-            return f"Error generating response: {error_msg}"
+            return f"Error generating response: {str(e)}"
 
 def main():
     # Initialize chatbot
