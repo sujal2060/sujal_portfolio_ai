@@ -16,7 +16,7 @@ from langchain.embeddings.base import Embeddings
 import streamlit as st
 import requests
 import time
-from duckduckgo_search import DDGS
+import json
 
 # Configuration
 CLUSTER_ENDPOINT = st.secrets["ZILLIZ_CLUSTER_ENDPOINT"]
@@ -282,36 +282,16 @@ class Chatbot:
             # If the response indicates no local information, perform web search
             if "I don't have enough information in my local knowledge base" in response:
                 try:
-                    # Perform web search
-                    with DDGS() as ddgs:
-                        search_results = list(ddgs.text(query, max_results=3))
+                    # Use Together AI's API for web search
+                    search_prompt = f"""Please search the web for information about: {query}
+                    Provide a comprehensive and accurate response based on reliable sources.
+                    If you're unsure about any information, mention that.
+                    Focus on factual information and avoid speculation."""
                     
-                    if search_results:
-                        # Create a new prompt with web search results
-                        web_context = "\n\n".join([result['body'] for result in search_results])
-                        web_prompt = f"""Based on the following web search results, please answer the question.
-                        If the information is not relevant or reliable, say so.
-                        
-                        Web Search Results:
-                        {web_context}
-                        
-                        Question: {query}
-                        
-                        Instructions:
-                        1. Provide a clear and concise answer based on the web search results
-                        2. If the search results are not relevant or reliable, say so
-                        3. Maintain a professional and helpful tone
-                        4. Include relevant details from the search results
-                        5. If you're unsure about the accuracy, mention that
-                        
-                        Answer:"""
-                        
-                        web_response = self.llm.invoke(web_prompt)
-                        return f"{response}\n\nHere's what I found from the web:\n{web_response}"
-                    else:
-                        return f"{response}\n\nI couldn't find any relevant information from the web search."
+                    web_response = self.llm.invoke(search_prompt)
+                    return f"{response}\n\nHere's what I found from my knowledge:\n{web_response}"
                 except Exception as e:
-                    return f"{response}\n\nI encountered an error while searching the web: {str(e)}"
+                    return f"{response}\n\nI encountered an error while searching for information: {str(e)}"
             
             return response
             
