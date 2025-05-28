@@ -1,0 +1,62 @@
+# Personal Information
+First Name: Sujal
+Last Name: Devkota
+Father's Name: Pravin Devkota
+Mother's Name: Manju Dangi
+Date of Birth (BS): 2060/08/10
+Date of Birth (AD): 2003/11/26
+
+# Contact Information
+Permanent Address: Dang, Lumbini Province
+Current Address: Babarmahal, Kathmandu
+Education: BCA Student at Tribhuvan University
+College: Swoyambhu International College
+
+# Skills
+- Web Development
+- Game Development
+- AI & ML
+- 3D Art (Blender)
+
+# About Me
+Hello! I'm a BCA student at Tribhuvan University with a strong passion for technology and creativity. I specialize in web development, with hands-on experience in modern tools and frameworks, especially Django for building dynamic and secure web applications.
+
+Beyond the web, I'm deeply curious about Data Science, Game Development, and 3D Design using Blender. I'm always exploring how code, data, and design can come together to build meaningful and innovative digital experiences.
+
+Currently, I'm expanding my skills in machine learning, game physics, and 3D modeling to push the boundaries of what I can create. Whether it's crafting an engaging website, developing an intelligent system, or building a virtual world—I love bringing ideas to life through technology.
+
+# What I Offer
+- Simple Landing Page: Rs 15,000
+- Full E-commerce Website: Rs 200,000
+- AI Integration: Rs 50,000
+- Portfolio Website: Rs 10,000
+
+# My Favorite Places
+- Dang
+- Salyan
+- Pokhara
+- Kathmandu
+
+# Blog
+I regularly share my learning journey and experiences through blog posts. Here are some of my recent articles:
+
+1. "MY FIRST DAY AT REACT ❤❤" (May 26, 2025)
+   - A reflection on starting my React.js journey, learning about components, JSX, and setting up my first React project.
+
+2. "Day 1 with Blender: My First Dive into 3D Creation" (May 24, 2025)
+   - Documenting my initial experience with Blender, from interface navigation to creating my first 3D animation.
+
+# Projects
+I've worked on various projects that showcase my technical skills and creativity:
+
+1. FOODBITE
+   - A comprehensive food ordering platform that supports both online payment and cash on delivery
+   - Features a user-friendly interface with robust security measures
+   - Visit: https://foodbite.infinityfreeapp.com/?i=1
+
+Photosynthesis is the process by which green plants convert sunlight into energy.
+
+The mitochondria is the powerhouse of the cell.
+
+
+   
