@@ -20,7 +20,7 @@ CLUSTER_ENDPOINT = st.secrets["ZILLIZ_CLUSTER_ENDPOINT"]
 TOKEN = st.secrets["ZILLIZ_TOKEN"]
 TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
 COLLECTION_NAME = "chatbot_collection"
-EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
+EMBEDDING_MODEL = "togethercomputer/m2-bert-80m-8k-base"
 LLM_MODEL = "deepseek-ai/DeepSeek-V3"
 
 # Validate required secrets
@@ -68,14 +68,16 @@ class Chatbot:
         print("Initializing embeddings...")
         self.embeddings = TogetherEmbeddings(
             model=EMBEDDING_MODEL,
-            api_key=TOGETHER_API_KEY
+            api_key=TOGETHER_API_KEY,
+            together_api_base="https://api.together.xyz/v1"
         )
         print("Embeddings initialized")
         
         print("Initializing LLM...")
         self.llm = Together(
             model=LLM_MODEL,
-            together_api_key=TOGETHER_API_KEY
+            together_api_key=TOGETHER_API_KEY,
+            together_api_base="https://api.together.xyz/v1"
         )
         print("LLM initialized")
         
