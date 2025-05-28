@@ -44,16 +44,10 @@ st.markdown("""
 if 'chatbot' not in st.session_state:
     with st.spinner('Initializing chatbot...'):
         try:
-            # Print current working directory and list files
-            st.write(f"Current working directory: {os.getcwd()}")
-            st.write("Files in directory:", os.listdir())
-            
             # Check if about.txt exists
             if not os.path.exists("about.txt"):
-                st.error("Error: about.txt file not found in the current directory!")
+                st.error("Error: about.txt file not found!")
                 st.stop()
-            
-            st.write("Found about.txt file, attempting to load...")
             
             # Initialize chatbot with progress tracking
             st.write("Step 1: Initializing chatbot...")
